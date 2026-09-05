@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 void main() {
@@ -41,7 +43,6 @@ class LoginPage extends StatelessWidget {
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () {
-                  // Switch to the main game screen and clear the login page from history
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (context) => const MainGameScreen()),
@@ -66,14 +67,44 @@ class MainGameScreen extends StatefulWidget {
 }
 
 class _MainGameScreenState extends State<MainGameScreen> {
-  // Variable to keep track of the cookie count
   int _cookieCount = 0;
+  bool _isCookiePressed = false;
+  int _nextPopId = 0;
+  final List<int> _activePops = [];
+  final List<Timer> _popTimers = [];
+  Timer? _pressTimer;
 
-  // Function to increase the count when clicked
   void _incrementCookie() {
     setState(() {
       _cookieCount++;
+      _isCookiePressed = true;
+      _activePops.add(_nextPopId++);
     });
+
+    _pressTimer?.cancel();
+    _pressTimer = Timer(const Duration(milliseconds: 130), () {
+      if (mounted) {
+        setState(() => _isCookiePressed = false);
+      }
+    });
+
+    final popId = _activePops.last;
+    _popTimers.add(
+      Timer(const Duration(seconds: 1), () {
+        if (mounted) {
+          setState(() => _activePops.remove(popId));
+        }
+      }),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pressTimer?.cancel();
+    for (final timer in _popTimers) {
+      timer.cancel();
+    }
+    super.dispose();
   }
 
   @override
@@ -114,17 +145,32 @@ class _MainGameScreenState extends State<MainGameScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Clickable Cookie Icon in the middle
-            GestureDetector(
-              onTap: _incrementCookie,
-              child: const Icon(
-                Icons.cookie,
-                size: 120.0,
-                color: Colors.brown,
+            SizedBox(
+              width: 220,
+              height: 190,
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  GestureDetector(
+                    onTap: _incrementCookie,
+                    child: AnimatedScale(
+                      scale: _isCookiePressed ? 0.82 : 1,
+                      duration: const Duration(milliseconds: 100),
+                      curve: Curves.easeOut,
+                      child: const Icon(
+                        Icons.cookie,
+                        size: 120.0,
+                        color: Colors.brown,
+                      ),
+                    ),
+                  ),
+                  for (final popId in _activePops)
+                    _CookiePop(key: ValueKey(popId)),
+                ],
               ),
             ),
             const SizedBox(height: 30.0),
-            // Counter text displayed at the bottom of the icon
             Text(
               'Cookies: $_cookieCount',
               style: const TextStyle(
@@ -134,6 +180,40 @@ class _MainGameScreenState extends State<MainGameScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CookiePop extends StatelessWidget {
+  const _CookiePop({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(seconds: 1),
+      curve: Curves.easeOut,
+      builder: (context, progress, child) {
+        return Transform.translate(
+          offset: Offset(0, -75 - (100 * progress)),
+          child: Opacity(opacity: 1 - progress, child: child),
+        );
+      },
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.cookie, size: 28, color: Colors.brown),
+          SizedBox(width: 4),
+          Text(
+            '+1',
+            style: TextStyle(
+              color: Colors.brown,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
