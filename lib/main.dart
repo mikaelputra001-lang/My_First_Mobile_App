@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -148,18 +149,28 @@ class MainGameScreen extends StatefulWidget {
 }
 
 class _MainGameScreenState extends State<MainGameScreen> {
+  // ===== Cookie clicker state and upgrades =====
   int _cookieCount = 0;
   bool _isCookiePressed = false;
+  bool _hasDoubleCookie = false;
+  bool _hasAutoBaking = false;
+  bool _hasCookieRoulette = false;
+  bool _isRouletteBonus = false;
+  int _rouletteClickCount = 0;
   int _nextPopId = 0;
-  final List<int> _activePops = [];
+  final List<_CookiePopData> _activePops = [];
   final List<Timer> _popTimers = [];
+  final _random = Random();
   Timer? _pressTimer;
+  Timer? _autoBakingTimer;
+  Timer? _rouletteFlashTimer;
 
+  // ===== Cookie collection and animations =====
   void _incrementCookie() {
+    _addCookies(_hasDoubleCookie ? 2 : 1);
+    _checkCookieRoulette();
     setState(() {
-      _cookieCount++;
       _isCookiePressed = true;
-      _activePops.add(_nextPopId++);
     });
 
     _pressTimer?.cancel();
@@ -169,19 +180,141 @@ class _MainGameScreenState extends State<MainGameScreen> {
       }
     });
 
-    final popId = _activePops.last;
+  }
+
+  void _addCookies(int amount) {
+    setState(() {
+      _cookieCount += amount;
+      _addPop(amount, Colors.brown);
+    });
+  }
+
+  void _checkCookieRoulette() {
+    if (!_hasCookieRoulette) {
+      return;
+    }
+
+    _rouletteClickCount++;
+    if (_rouletteClickCount % 20 != 0 || !_random.nextBool()) {
+      return;
+    }
+
+    setState(() {
+      _cookieCount += 10;
+      _addPop(10, Colors.amber.shade700);
+      _isRouletteBonus = true;
+    });
+
+    _rouletteFlashTimer?.cancel();
+    _rouletteFlashTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() => _isRouletteBonus = false);
+      }
+    });
+  }
+
+  void _addPop(int amount, Color color) {
+    final pop = _CookiePopData(_nextPopId++, amount, color);
+    _activePops.add(pop);
     _popTimers.add(
       Timer(const Duration(seconds: 1), () {
         if (mounted) {
-          setState(() => _activePops.remove(popId));
+          setState(() => _activePops.remove(pop));
         }
       }),
     );
   }
 
+  // ===== Upgrade information and unlocks =====
+  void _showUpgradeInfo(_UpgradeType upgrade) {
+    final isUnlocked = _isUnlocked(upgrade);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(upgrade.title),
+        content: Text(upgrade.description),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+          if (!isUnlocked)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _tryUpgrade(upgrade);
+              },
+              child: const Text('Unlock'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _tryUpgrade(_UpgradeType upgrade) {
+    if (_isUnlocked(upgrade)) {
+      Navigator.pop(context);
+      return;
+    }
+
+    final requiredCookies = upgrade.requiredCookies;
+    if (_cookieCount < requiredCookies) {
+      Navigator.pop(context);
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Upgrade terkunci'),
+          content: Text(
+            'Anda kurang ${requiredCookies - _cookieCount} cookie untuk membuka upgrade ini!',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      switch (upgrade) {
+        case _UpgradeType.doubleCookie:
+          _hasDoubleCookie = true;
+          break;
+        case _UpgradeType.autoBaking:
+          _hasAutoBaking = true;
+          break;
+        case _UpgradeType.cookieRoulette:
+          _hasCookieRoulette = true;
+          _rouletteClickCount = 0;
+          break;
+      }
+    });
+
+    if (upgrade == _UpgradeType.autoBaking) {
+      _autoBakingTimer ??= Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => _addCookies(1),
+      );
+    }
+    Navigator.pop(context);
+  }
+
+  bool _isUnlocked(_UpgradeType upgrade) {
+    return switch (upgrade) {
+      _UpgradeType.doubleCookie => _hasDoubleCookie,
+      _UpgradeType.autoBaking => _hasAutoBaking,
+      _UpgradeType.cookieRoulette => _hasCookieRoulette,
+    };
+  }
+
   @override
   void dispose() {
     _pressTimer?.cancel();
+    _autoBakingTimer?.cancel();
+    _rouletteFlashTimer?.cancel();
     for (final timer in _popTimers) {
       timer.cancel();
     }
@@ -190,6 +323,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ===== Game interface =====
     return Scaffold(
       appBar: AppBar(title: const Text('Cookie Clicker')),
       drawer: Drawer(
@@ -211,14 +345,17 @@ class _MainGameScreenState extends State<MainGameScreen> {
                 ),
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.arrow_upward),
-              title: const Text('Upgrade'),
-              onTap: () {
-                print('Upgrade button clicked!');
-                Navigator.pop(context); // Closes the drawer
-              },
-            ),
+            for (final upgrade in _UpgradeType.values)
+              ListTile(
+                leading: Icon(
+                  _isUnlocked(upgrade) ? Icons.check_circle : Icons.lock,
+                  color: _isUnlocked(upgrade) ? Colors.green : Colors.grey,
+                ),
+                title: Text(upgrade.title),
+                subtitle: Text('${upgrade.requiredCookies} cookie untuk unlock'),
+                trailing: const Icon(Icons.touch_app),
+                onTap: () => _showUpgradeInfo(upgrade),
+              ),
           ],
         ),
       ),
@@ -239,15 +376,19 @@ class _MainGameScreenState extends State<MainGameScreen> {
                       scale: _isCookiePressed ? 0.82 : 1,
                       duration: const Duration(milliseconds: 100),
                       curve: Curves.easeOut,
-                      child: const Icon(
+                      child: Icon(
                         Icons.cookie,
                         size: 120.0,
-                        color: Colors.brown,
+                        color: _isRouletteBonus ? Colors.amber.shade700 : Colors.brown,
                       ),
                     ),
                   ),
-                  for (final popId in _activePops)
-                    _CookiePop(key: ValueKey(popId)),
+                  for (final pop in _activePops)
+                    _CookiePop(
+                      key: ValueKey(pop.id),
+                      amount: pop.amount,
+                      color: pop.color,
+                    ),
                 ],
               ),
             ),
@@ -266,8 +407,43 @@ class _MainGameScreenState extends State<MainGameScreen> {
   }
 }
 
+class _CookiePopData {
+  const _CookiePopData(this.id, this.amount, this.color);
+
+  final int id;
+  final int amount;
+  final Color color;
+}
+
+enum _UpgradeType {
+  doubleCookie(
+    'Double Cookie',
+    100,
+    'the cookie has double! when you click the cookie is adding 2 cookie insted of 1.',
+  ),
+  autoBaking(
+    'Auto Baking',
+    200,
+    'your oven now has AI Agent in it?! now every 1 second a cookie will automaticly made.',
+  ),
+  cookieRoulette(
+    'Cookies and Chips?!',
+    500,
+    'chips? remind me of a casino chips. BTW, every 20 click you made will have a 50/50 change of its being a golden cookie that will give you 10 cookie as FREE!',
+  );
+
+  const _UpgradeType(this.title, this.requiredCookies, this.description);
+
+  final String title;
+  final int requiredCookies;
+  final String description;
+}
+
 class _CookiePop extends StatelessWidget {
-  const _CookiePop({super.key});
+  const _CookiePop({super.key, required this.amount, required this.color});
+
+  final int amount;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -281,15 +457,15 @@ class _CookiePop extends StatelessWidget {
           child: Opacity(opacity: 1 - progress, child: child),
         );
       },
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.cookie, size: 28, color: Colors.brown),
-          SizedBox(width: 4),
+          Icon(Icons.cookie, size: 28, color: color),
+          const SizedBox(width: 4),
           Text(
-            '+1',
+            '+$amount',
             style: TextStyle(
-              color: Colors.brown,
+              color: color,
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
