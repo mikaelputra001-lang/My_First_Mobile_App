@@ -149,7 +149,7 @@ class MainGameScreen extends StatefulWidget {
 }
 
 class _MainGameScreenState extends State<MainGameScreen> {
-  // ===== Cookie clicker state and upgrades =====
+  // ==== Game state variables =====
   int _cookieCount = 0;
   bool _isCookiePressed = false;
   bool _hasDoubleCookie = false;
@@ -165,7 +165,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
   Timer? _autoBakingTimer;
   Timer? _rouletteFlashTimer;
 
-  // ===== Cookie collection and animations =====
+  // ===== Cookie increment logic =====
   void _incrementCookie() {
     _addCookies(_hasDoubleCookie ? 2 : 1);
     _checkCookieRoulette();
@@ -181,14 +181,14 @@ class _MainGameScreenState extends State<MainGameScreen> {
     });
 
   }
-
+// ==== Cookie addition logic =====
   void _addCookies(int amount) {
     setState(() {
       _cookieCount += amount;
       _addPop(amount, Colors.brown);
     });
   }
-
+// ===== Cookie roulette bonus logic =====
   void _checkCookieRoulette() {
     if (!_hasCookieRoulette) {
       return;
@@ -212,7 +212,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
       }
     });
   }
-
+// ===== Cookie pop animation management =====
   void _addPop(int amount, Color color) {
     final pop = _CookiePopData(_nextPopId++, amount, color);
     _activePops.add(pop);
@@ -250,13 +250,13 @@ class _MainGameScreenState extends State<MainGameScreen> {
       ),
     );
   }
-
+// ==== Upgrade unlock logic =====
   void _tryUpgrade(_UpgradeType upgrade) {
     if (_isUnlocked(upgrade)) {
       Navigator.pop(context);
       return;
     }
-
+// ==== Check if the player has enough cookies to unlock the upgrade ====
     final requiredCookies = upgrade.requiredCookies;
     if (_cookieCount < requiredCookies) {
       Navigator.pop(context);
@@ -277,8 +277,10 @@ class _MainGameScreenState extends State<MainGameScreen> {
       );
       return;
     }
-
+// === Unlock the upgrade and update state ===
     setState(() {
+      // A successful upgrade starts the next progress counter from zero.
+      _cookieCount = 0;
       switch (upgrade) {
         case _UpgradeType.doubleCookie:
           _hasDoubleCookie = true;
@@ -292,7 +294,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
           break;
       }
     });
-
+// === Start auto-baking timer if unlocked ===
     if (upgrade == _UpgradeType.autoBaking) {
       _autoBakingTimer ??= Timer.periodic(
         const Duration(seconds: 1),
@@ -301,7 +303,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
     }
     Navigator.pop(context);
   }
-
+// ===== Upgrade unlock check =====
   bool _isUnlocked(_UpgradeType upgrade) {
     return switch (upgrade) {
       _UpgradeType.doubleCookie => _hasDoubleCookie,
@@ -309,7 +311,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
       _UpgradeType.cookieRoulette => _hasCookieRoulette,
     };
   }
-
+// ===== Lifecycle management =====
   @override
   void dispose() {
     _pressTimer?.cancel();
@@ -372,14 +374,22 @@ class _MainGameScreenState extends State<MainGameScreen> {
                 children: [
                   GestureDetector(
                     onTap: _incrementCookie,
-                    child: AnimatedScale(
-                      scale: _isCookiePressed ? 0.82 : 1,
-                      duration: const Duration(milliseconds: 100),
-                      curve: Curves.easeOut,
-                      child: Icon(
-                        Icons.cookie,
-                        size: 120.0,
-                        color: _isRouletteBonus ? Colors.amber.shade700 : Colors.brown,
+                    child: SizedBox(
+                      width: 156,
+                      height: 156,
+                      child: Center(
+                        child: AnimatedScale(
+                          scale: _isCookiePressed ? 0.82 : 1,
+                          duration: const Duration(milliseconds: 100),
+                          curve: Curves.easeOut,
+                          child: Icon(
+                            Icons.cookie,
+                            size: 120.0,
+                            color: _isRouletteBonus
+                                ? Colors.amber.shade700
+                                : Colors.brown,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -407,6 +417,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
   }
 }
 
+//===== Cookie pop animation data class and widget =====
 class _CookiePopData {
   const _CookiePopData(this.id, this.amount, this.color);
 
@@ -427,7 +438,7 @@ enum _UpgradeType {
     'your oven now has AI Agent in it?! now every 1 second a cookie will automaticly made.',
   ),
   cookieRoulette(
-    'Cookies and Chips?!',
+    'Choco Chips?!',
     500,
     'chips? remind me of a casino chips. BTW, every 20 click you made will have a 50/50 change of its being a golden cookie that will give you 10 cookie as FREE!',
   );
