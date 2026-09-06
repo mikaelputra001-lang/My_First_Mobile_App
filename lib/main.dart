@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -71,8 +72,7 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               if (_isUsernameWrong)
                 const _LoginError(
-                  message:
-                      '*username salah, mohon masukan username yang benar',
+                  message: '*username salah, mohon masukan username yang benar',
                 ),
               TextField(
                 controller: _usernameController,
@@ -90,8 +90,7 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 16),
               if (_isPasswordWrong)
                 const _LoginError(
-                  message:
-                      '*password salah, mohon masukan password yang benar',
+                  message: '*password salah, mohon masukan password yang benar',
                 ),
               TextField(
                 controller: _passwordController,
@@ -108,10 +107,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _login,
-                child: const Text('Login'),
-              ),
+              ElevatedButton(onPressed: _login, child: const Text('Login')),
             ],
           ),
         ),
@@ -161,12 +157,17 @@ class _MainGameScreenState extends State<MainGameScreen> {
   final List<_CookiePopData> _activePops = [];
   final List<Timer> _popTimers = [];
   final _random = Random();
+  final _eatingSfx = AudioPlayer();
+  final _ovenDingSfx = AudioPlayer();
+  final _upgradeSfx = AudioPlayer();
+  final _jackpotSfx = AudioPlayer();
   Timer? _pressTimer;
   Timer? _autoBakingTimer;
   Timer? _rouletteFlashTimer;
 
   // ===== Cookie increment logic =====
   void _incrementCookie() {
+    unawaited(_playSfx(_eatingSfx, 'eatingSFX.mp3'));
     _addCookies(_hasDoubleCookie ? 2 : 1);
     _checkCookieRoulette();
     setState(() {
@@ -179,16 +180,26 @@ class _MainGameScreenState extends State<MainGameScreen> {
         setState(() => _isCookiePressed = false);
       }
     });
-
   }
-// ==== Cookie addition logic =====
+
+  Future<void> _playSfx(AudioPlayer player, String fileName) async {
+    try {
+      await player.stop();
+      await player.play(AssetSource('audio/$fileName'));
+    } catch (_) {
+      // Keep gameplay working if an audio asset is not present yet.
+    }
+  }
+
+  // ==== Cookie addition logic =====
   void _addCookies(int amount) {
     setState(() {
       _cookieCount += amount;
       _addPop(amount, Colors.brown);
     });
   }
-// ===== Cookie roulette bonus logic =====
+
+  // ===== Cookie roulette bonus logic =====
   void _checkCookieRoulette() {
     if (!_hasCookieRoulette) {
       return;
@@ -204,15 +215,17 @@ class _MainGameScreenState extends State<MainGameScreen> {
       _addPop(10, Colors.amber.shade700);
       _isRouletteBonus = true;
     });
+    unawaited(_playSfx(_jackpotSfx, 'hakariJackpot.mp3'));
 
     _rouletteFlashTimer?.cancel();
-    _rouletteFlashTimer = Timer(const Duration(milliseconds: 500), () {
+    _rouletteFlashTimer = Timer(const Duration(seconds: 2), () {
       if (mounted) {
         setState(() => _isRouletteBonus = false);
       }
     });
   }
-// ===== Cookie pop animation management =====
+
+  // ===== Cookie pop animation management =====
   void _addPop(int amount, Color color) {
     final pop = _CookiePopData(_nextPopId++, amount, color);
     _activePops.add(pop);
@@ -250,13 +263,14 @@ class _MainGameScreenState extends State<MainGameScreen> {
       ),
     );
   }
-// ==== Upgrade unlock logic =====
+
+  // ==== Upgrade unlock logic =====
   void _tryUpgrade(_UpgradeType upgrade) {
     if (_isUnlocked(upgrade)) {
       Navigator.pop(context);
       return;
     }
-// ==== Check if the player has enough cookies to unlock the upgrade ====
+    // ==== Check if the player has enough cookies to unlock the upgrade ====
     final requiredCookies = upgrade.requiredCookies;
     if (_cookieCount < requiredCookies) {
       Navigator.pop(context);
@@ -277,7 +291,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
       );
       return;
     }
-// === Unlock the upgrade and update state ===
+    // === Unlock the upgrade and update state ===
     setState(() {
       // A successful upgrade starts the next progress counter from zero.
       _cookieCount = 0;
@@ -294,16 +308,18 @@ class _MainGameScreenState extends State<MainGameScreen> {
           break;
       }
     });
-// === Start auto-baking timer if unlocked ===
+    unawaited(_playSfx(_upgradeSfx, 'Low Honor RDR.mp3'));
+    // === Start auto-baking timer if unlocked ===
     if (upgrade == _UpgradeType.autoBaking) {
-      _autoBakingTimer ??= Timer.periodic(
-        const Duration(seconds: 1),
-        (_) => _addCookies(1),
-      );
+      _autoBakingTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+        _addCookies(1);
+        unawaited(_playSfx(_ovenDingSfx, 'ovenDing.mp3'));
+      });
     }
     Navigator.pop(context);
   }
-// ===== Upgrade unlock check =====
+
+  // ===== Upgrade unlock check =====
   bool _isUnlocked(_UpgradeType upgrade) {
     return switch (upgrade) {
       _UpgradeType.doubleCookie => _hasDoubleCookie,
@@ -311,7 +327,8 @@ class _MainGameScreenState extends State<MainGameScreen> {
       _UpgradeType.cookieRoulette => _hasCookieRoulette,
     };
   }
-// ===== Lifecycle management =====
+
+  // ===== Lifecycle management =====
   @override
   void dispose() {
     _pressTimer?.cancel();
@@ -320,6 +337,10 @@ class _MainGameScreenState extends State<MainGameScreen> {
     for (final timer in _popTimers) {
       timer.cancel();
     }
+    unawaited(_eatingSfx.dispose());
+    unawaited(_ovenDingSfx.dispose());
+    unawaited(_upgradeSfx.dispose());
+    unawaited(_jackpotSfx.dispose());
     super.dispose();
   }
 
@@ -354,63 +375,87 @@ class _MainGameScreenState extends State<MainGameScreen> {
                   color: _isUnlocked(upgrade) ? Colors.green : Colors.grey,
                 ),
                 title: Text(upgrade.title),
-                subtitle: Text('${upgrade.requiredCookies} cookie untuk unlock'),
+                subtitle: Text(
+                  '${upgrade.requiredCookies} cookie untuk unlock',
+                ),
                 trailing: const Icon(Icons.touch_app),
                 onTap: () => _showUpgradeInfo(upgrade),
               ),
           ],
         ),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 220,
-              height: 190,
-              child: Stack(
-                alignment: Alignment.center,
-                clipBehavior: Clip.none,
-                children: [
-                  GestureDetector(
-                    onTap: _incrementCookie,
-                    child: SizedBox(
-                      width: 156,
-                      height: 156,
-                      child: Center(
-                        child: AnimatedScale(
-                          scale: _isCookiePressed ? 0.82 : 1,
-                          duration: const Duration(milliseconds: 100),
-                          curve: Curves.easeOut,
-                          child: Icon(
-                            Icons.cookie,
-                            size: 120.0,
-                            color: _isRouletteBonus
-                                ? Colors.amber.shade700
-                                : Colors.brown,
+      body: AnimatedContainer(
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOut,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: _isRouletteBonus
+              ? null
+              : Theme.of(context).scaffoldBackgroundColor,
+          gradient: _isRouletteBonus
+              ? const LinearGradient(
+                  colors: [
+                    Colors.red,
+                    Colors.orange,
+                    Colors.yellow,
+                    Colors.green,
+                    Colors.blue,
+                    Colors.purple,
+                  ],
+                )
+              : null,
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 220,
+                height: 190,
+                child: Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    GestureDetector(
+                      onTap: _incrementCookie,
+                      child: SizedBox(
+                        width: 156,
+                        height: 156,
+                        child: Center(
+                          child: AnimatedScale(
+                            scale: _isCookiePressed ? 0.82 : 1,
+                            duration: const Duration(milliseconds: 100),
+                            curve: Curves.easeOut,
+                            child: Icon(
+                              Icons.cookie,
+                              size: 120.0,
+                              color: _isRouletteBonus
+                                  ? Colors.amber.shade700
+                                  : Colors.brown,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  for (final pop in _activePops)
-                    _CookiePop(
-                      key: ValueKey(pop.id),
-                      amount: pop.amount,
-                      color: pop.color,
-                    ),
-                ],
+                    for (final pop in _activePops)
+                      _CookiePop(
+                        key: ValueKey(pop.id),
+                        amount: pop.amount,
+                        color: pop.color,
+                      ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 30.0),
-            Text(
-              'Cookies: $_cookieCount',
-              style: const TextStyle(
-                fontSize: 28.0,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 30.0),
+              Text(
+                'Cookies: $_cookieCount',
+                style: const TextStyle(
+                  fontSize: 28.0,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
