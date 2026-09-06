@@ -18,9 +18,45 @@ class MyApp extends StatelessWidget {
   }
 }
 
-//Login Page
-class LoginPage extends StatelessWidget {
+// Login Page
+class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isUsernameWrong = false;
+  bool _isPasswordWrong = false;
+
+  void _login() {
+    const correctUsername = 'mikael';
+    const correctPassword = '123';
+    final isUsernameWrong = _usernameController.text != correctUsername;
+    final isPasswordWrong = _passwordController.text != correctPassword;
+
+    setState(() {
+      _isUsernameWrong = isUsernameWrong;
+      _isPasswordWrong = isPasswordWrong;
+    });
+
+    if (!isUsernameWrong && !isPasswordWrong) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainGameScreen()),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,26 +68,71 @@ class LoginPage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const TextField(
-                decoration: InputDecoration(labelText: 'Username'),
+              if (_isUsernameWrong)
+                const _LoginError(
+                  message:
+                      '*username salah, mohon masukan username yang benar',
+                ),
+              TextField(
+                controller: _usernameController,
+                onChanged: (_) {
+                  if (_isUsernameWrong) {
+                    setState(() => _isUsernameWrong = false);
+                  }
+                },
+                decoration: InputDecoration(
+                  labelText: 'Username',
+                  filled: _isUsernameWrong,
+                  fillColor: const Color.fromRGBO(244, 67, 54, 0.12),
+                ),
               ),
               const SizedBox(height: 16),
-              const TextField(
+              if (_isPasswordWrong)
+                const _LoginError(
+                  message:
+                      '*password salah, mohon masukan password yang benar',
+                ),
+              TextField(
+                controller: _passwordController,
                 obscureText: true,
-                decoration: InputDecoration(labelText: 'Password'),
+                onChanged: (_) {
+                  if (_isPasswordWrong) {
+                    setState(() => _isPasswordWrong = false);
+                  }
+                },
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  filled: _isPasswordWrong,
+                  fillColor: const Color.fromRGBO(244, 67, 54, 0.12),
+                ),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const MainGameScreen()),
-                  );
-                },
+                onPressed: _login,
                 child: const Text('Login'),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoginError extends StatelessWidget {
+  const _LoginError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(
+          message,
+          style: const TextStyle(color: Colors.red, fontSize: 12),
         ),
       ),
     );
