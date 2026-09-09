@@ -3,6 +3,13 @@ import 'dart:math';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+const _pageBackground = Color(0xFFFCF7F8);
+const _cookieBrown = Color(0xFF7A4D3D);
+const _cookieInk = Color(0xFF211614);
+const _cookieMuted = Color(0xFF907E77);
+const _cookieBlush = Color(0xFFF5EBEE);
 
 void main() {
   runApp(const MyApp());
@@ -13,8 +20,67 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        scaffoldBackgroundColor: _pageBackground,
+        colorScheme:
+            ColorScheme.fromSeed(
+              seedColor: _cookieBrown,
+              brightness: Brightness.light,
+            ).copyWith(
+              primary: _cookieBrown,
+              onPrimary: Colors.white,
+              surface: _pageBackground,
+            ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: _pageBackground,
+          foregroundColor: _cookieInk,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          systemOverlayStyle: SystemUiOverlayStyle.dark,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 18,
+            vertical: 16,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(28),
+            borderSide: const BorderSide(color: Color(0xFFE5D9DC)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(28),
+            borderSide: const BorderSide(color: Color(0xFFE5D9DC)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(28),
+            borderSide: const BorderSide(color: _cookieBrown, width: 1.5),
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _cookieBrown,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+        drawerTheme: const DrawerThemeData(
+          backgroundColor: _pageBackground,
+          surfaceTintColor: Colors.transparent,
+        ),
+      ),
       home: LoginPage(),
     );
   }
@@ -33,6 +99,7 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _isUsernameWrong = false;
   bool _isPasswordWrong = false;
+  bool _obscurePassword = true;
 
   void _login() {
     const correctUsername = 'mikael';
@@ -62,53 +129,132 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_isUsernameWrong)
-                const _LoginError(
-                  message: '*username salah, mohon masukan username yang benar',
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: _pageBackground,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(28, 24, 28, 14),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 38,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 84),
+                      const Center(child: _CookieMark(size: 150)),
+                      const SizedBox(height: 22),
+                      const Text(
+                        'COOKIE',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _cookieBrown,
+                          fontSize: 29,
+                          height: 0.95,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const Text(
+                        'CLICKER',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _cookieInk,
+                          fontSize: 29,
+                          height: 0.95,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      const _FormLabel('BAKER NICKNAME'),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _usernameController,
+                        textInputAction: TextInputAction.next,
+                        onChanged: (_) {
+                          if (_isUsernameWrong) {
+                            setState(() => _isUsernameWrong = false);
+                          }
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'username',
+                          prefixIcon: const Icon(Icons.person_outline),
+                          errorText: _isUsernameWrong
+                              ? 'Username tidak sesuai'
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const _FormLabel('SECRET RECIPE'),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _login(),
+                        onChanged: (_) {
+                          if (_isPasswordWrong) {
+                            setState(() => _isPasswordWrong = false);
+                          }
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'password',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            tooltip: _obscurePassword
+                                ? 'Tampilkan password'
+                                : 'Sembunyikan password',
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                            ),
+                            onPressed: () {
+                              setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              );
+                            },
+                          ),
+                          errorText: _isPasswordWrong
+                              ? 'Password tidak sesuai'
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(height: 94),
+                      ElevatedButton(
+                        onPressed: _login,
+                        child: const Text('START BAKING'),
+                      ),
+                      const SizedBox(height: 14),
+                      Center(
+                        child: Text.rich(
+                          TextSpan(
+                            text: 'New Baker? ',
+                            style: const TextStyle(color: _cookieMuted),
+                            children: [
+                              TextSpan(
+                                text: 'Join the Bakery',
+                                style: const TextStyle(
+                                  color: _cookieBrown,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              TextField(
-                controller: _usernameController,
-                onChanged: (_) {
-                  if (_isUsernameWrong) {
-                    setState(() => _isUsernameWrong = false);
-                  }
-                },
-                decoration: InputDecoration(
-                  labelText: 'Username',
-                  filled: _isUsernameWrong,
-                  fillColor: const Color.fromRGBO(244, 67, 54, 0.12),
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (_isPasswordWrong)
-                const _LoginError(
-                  message: '*password salah, mohon masukan password yang benar',
-                ),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                onChanged: (_) {
-                  if (_isPasswordWrong) {
-                    setState(() => _isPasswordWrong = false);
-                  }
-                },
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  filled: _isPasswordWrong,
-                  fillColor: const Color.fromRGBO(244, 67, 54, 0.12),
-                ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(onPressed: _login, child: const Text('Login')),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -116,21 +262,20 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-class _LoginError extends StatelessWidget {
-  const _LoginError({required this.message});
+class _FormLabel extends StatelessWidget {
+  const _FormLabel(this.label);
 
-  final String message;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Text(
-          message,
-          style: const TextStyle(color: Colors.red, fontSize: 12),
-        ),
+    return Text(
+      label,
+      style: const TextStyle(
+        color: _cookieMuted,
+        fontSize: 11,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.2,
       ),
     );
   }
@@ -352,19 +497,37 @@ class _MainGameScreenState extends State<MainGameScreen> {
       builder: (dialogContext) => AlertDialog(
         title: Text(upgrade.title),
         content: Text(upgrade.description),
+        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!isUnlocked) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      _tryUpgrade(upgrade);
+                    },
+                    child: const Text('Unlock'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _cookieBrown,
+                    side: const BorderSide(color: _cookieBrown),
+                  ),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
           ),
-          if (!isUnlocked)
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                _tryUpgrade(upgrade);
-              },
-              child: const Text('Unlock'),
-            ),
         ],
       ),
     );
@@ -495,140 +658,264 @@ class _MainGameScreenState extends State<MainGameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ===== Game interface =====
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cookie Clicker'),
-        actions: [
-          IconButton(
-            tooltip: 'Logout',
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: _pageBackground,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        drawer: Drawer(
+          width: min(340.0, MediaQuery.sizeOf(context).width * 0.86),
+          child: SafeArea(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: <Widget>[
+                Container(
+                  height: 164,
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+                  color: _cookieBrown,
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Icon(
+                        Icons.cookie_outlined,
+                        color: Colors.white,
+                        size: 34,
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        'COOKIE CLICKER',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Bake your way to the top',
+                        style: TextStyle(
+                          color: Color(0xFFEBD8D1),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                  secondary: Icon(
+                    _soundEnabled
+                        ? Icons.volume_up_outlined
+                        : Icons.volume_off_outlined,
+                    color: _cookieBrown,
+                  ),
+                  title: const Text(
+                    'Sound effects',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('Game audio'),
+                  value: _soundEnabled,
+                  onChanged: _setSoundEnabled,
+                ),
+                const Divider(height: 1, indent: 20, endIndent: 20),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 22, 20, 8),
+                  child: Text(
+                    'UPGRADES',
+                    style: TextStyle(
+                      color: _cookieMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                for (final upgrade in _UpgradeType.values)
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                    leading: Icon(
+                      _isUnlocked(upgrade)
+                          ? Icons.check_circle_outline
+                          : Icons.lock_outline,
+                      color: _isUnlocked(upgrade) ? _cookieBrown : _cookieMuted,
+                    ),
+                    title: Text(
+                      upgrade.title,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      '${upgrade.requiredCookies} cookie untuk unlock',
+                    ),
+                    trailing: Switch.adaptive(
+                      value: _isUpgradeEnabled(upgrade),
+                      onChanged: _isUnlocked(upgrade)
+                          ? (enabled) => _setUpgradeEnabled(upgrade, enabled)
+                          : null,
+                    ),
+                    onTap: () => _showUpgradeInfo(upgrade),
+                  ),
+              ],
+            ),
           ),
-        ],
-      ),
-      drawer: Drawer(
-        backgroundColor: const Color.fromRGBO(255, 255, 255, 1),
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: <Widget>[
-            const SizedBox(
-              height: 100.0,
-              child: DrawerHeader(
-                margin: EdgeInsets.zero,
-                decoration: BoxDecoration(
-                  color: Color.fromRGBO(0, 100, 200, 1),
-                ),
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  'Cookie Clicker',
-                  style: TextStyle(color: Colors.white, fontSize: 18),
-                ),
-              ),
-            ),
-            SwitchListTile(
-              secondary: Icon(
-                _soundEnabled ? Icons.volume_up : Icons.volume_off,
-              ),
-              title: const Text('Sound'),
-              value: _soundEnabled,
-              onChanged: _setSoundEnabled,
-            ),
-            for (final upgrade in _UpgradeType.values)
-              ListTile(
-                leading: Icon(
-                  _isUnlocked(upgrade) ? Icons.check_circle : Icons.lock,
-                  color: _isUnlocked(upgrade) ? Colors.green : Colors.grey,
-                ),
-                title: Text(upgrade.title),
-                subtitle: Text(
-                  '${upgrade.requiredCookies} cookie untuk unlock',
-                ),
-                trailing: Switch(
-                  value: _isUpgradeEnabled(upgrade),
-                  onChanged: _isUnlocked(upgrade)
-                      ? (enabled) => _setUpgradeEnabled(upgrade, enabled)
-                      : null,
-                ),
-                onTap: () => _showUpgradeInfo(upgrade),
-              ),
-          ],
         ),
-      ),
-      body: AnimatedContainer(
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeOut,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: _isRouletteBonus
-              ? null
-              : Theme.of(context).scaffoldBackgroundColor,
-          gradient: _isRouletteBonus
-              ? const LinearGradient(
-                  colors: [
-                    Colors.red,
-                    Colors.orange,
-                    Colors.yellow,
-                    Colors.green,
-                    Colors.blue,
-                    Colors.purple,
-                  ],
-                )
-              : null,
-        ),
-        child: Center(
+        body: SafeArea(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
-                width: 220,
-                height: 190,
-                child: Stack(
-                  alignment: Alignment.center,
-                  clipBehavior: Clip.none,
+                height: 68,
+                child: Row(
                   children: [
-                    GestureDetector(
-                      onTap: _incrementCookie,
-                      child: SizedBox(
-                        width: 156,
-                        height: 156,
-                        child: Center(
-                          child: AnimatedScale(
-                            scale: _isCookiePressed ? 0.82 : 1,
-                            duration: const Duration(milliseconds: 100),
-                            curve: Curves.easeOut,
-                            child: Icon(
-                              Icons.cookie,
-                              size: 120.0,
-                              color: _isRouletteBonus
-                                  ? Colors.amber.shade700
-                                  : Colors.brown,
-                            ),
+                    Builder(
+                      builder: (context) => IconButton(
+                        tooltip: 'Open menu',
+                        icon: const Icon(Icons.menu, size: 25),
+                        onPressed: () => Scaffold.of(context).openDrawer(),
+                      ),
+                    ),
+                    const Expanded(
+                      child: Center(
+                        child: Text(
+                          'COOKIE CLICKER',
+                          style: TextStyle(
+                            color: _cookieInk,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ),
                     ),
-                    for (final pop in _activePops)
-                      _CookiePop(
-                        key: ValueKey(pop.id),
-                        amount: pop.amount,
-                        color: pop.color,
-                      ),
+                    IconButton(
+                      tooltip: 'Logout',
+                      icon: const Icon(Icons.logout_outlined, size: 24),
+                      onPressed: _logout,
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 30.0),
-              Text(
-                'Cookies: $_cookieCount',
-                style: const TextStyle(
-                  fontSize: 28.0,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOut,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: _isRouletteBonus ? null : _pageBackground,
+                    gradient: _isRouletteBonus
+                        ? const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF80520A),
+                              Color(0xFFD4A72C),
+                              Color(0xFFFFE7A0),
+                              Color(0xFFD4A72C),
+                              Color(0xFF80520A),
+                            ],
+                            stops: [0.0, 0.28, 0.5, 0.72, 1.0],
+                          )
+                        : null,
+                  ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 280,
+                              height: 258,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                clipBehavior: Clip.none,
+                                children: [
+                                  GestureDetector(
+                                    onTap: _incrementCookie,
+                                    child: AnimatedScale(
+                                      scale: _isCookiePressed ? 0.82 : 1,
+                                      duration: const Duration(
+                                        milliseconds: 100,
+                                      ),
+                                      curve: Curves.easeOut,
+                                      child: _CookieMark(
+                                        size: min(
+                                          220.0,
+                                          constraints.maxWidth * 0.66,
+                                        ),
+                                        cookieColor: _isRouletteBonus
+                                            ? Colors.amber.shade700
+                                            : _cookieBrown,
+                                      ),
+                                    ),
+                                  ),
+                                  for (final pop in _activePops)
+                                    _CookiePop(
+                                      key: ValueKey(pop.id),
+                                      amount: pop.amount,
+                                      color: pop.color,
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Cookies: $_cookieCount',
+                              style: const TextStyle(
+                                color: _cookieInk,
+                                fontSize: 34,
+                                height: 1,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '+${_isDoubleCookieEnabled ? 2 : 1} per click',
+                              style: const TextStyle(
+                                color: _cookieBrown,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CookieMark extends StatelessWidget {
+  const _CookieMark({required this.size, this.cookieColor = _cookieBrown});
+
+  final double size;
+  final Color cookieColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        color: _cookieBlush,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 20,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: Icon(Icons.cookie, size: size * 0.72, color: cookieColor),
     );
   }
 }
